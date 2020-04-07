@@ -51,6 +51,8 @@ type exporter struct {
 	client *statsd.Client
 }
 
+const rate = 1
+
 func (e *exporter) Export(ctx context.Context, cs export.CheckpointSet) error {
 	return cs.ForEach(func(r export.Record) error {
 		agg := r.Aggregator()
@@ -93,20 +95,20 @@ func (e *exporter) Export(ctx context.Context, cs export.CheckpointSet) error {
 				if err != nil {
 					return err
 				}
-				e.client.Gauge(rec.name, float64(val.AsInt64()), tags, 1)
+				e.client.Gauge(rec.name, metricValue(r.Descriptor().NumberKind(), val), tags, rate)
 			}
 		case aggregator.Sum:
 			val, err := agg.Sum()
 			if err != nil {
 				return err
 			}
-			e.client.Gauge(name+".count", float64(val.AsInt64()), tags, 1)
+			e.client.Gauge(name+".count", metricValue(r.Descriptor().NumberKind(), val), tags, rate)
 		case aggregator.LastValue:
 			val, _, err := agg.LastValue()
 			if err != nil {
 				return err
 			}
-			e.client.Gauge(name+".count", float64(val.AsInt64()), tags, 1)
+			e.client.Gauge(name+".count", metricValue(r.Descriptor().NumberKind(), val), tags, rate)
 		}
 		return nil
 	})
@@ -128,4 +130,16 @@ var reg = regexp.MustCompile("[^a-zA-Z0-9]+")
 // sanitizeString replaces all non-alphanumerical characters to underscore
 func sanitizeString(str string) string {
 	return reg.ReplaceAllString(str, "_")
+}
+
+func metricValue(kind core.NumberKind, number core.Number) float64 {
+	switch kind {
+	case core.Float64NumberKind:
+		return number.AsFloat64()
+	case core.Int64NumberKind:
+		return float64(number.AsInt64())
+	case core.Uint64NumberKind:
+		return float64(number.AsUint64())
+	}
+	return float64(number)
 }
