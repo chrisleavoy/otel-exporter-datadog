@@ -102,13 +102,13 @@ func (e *exporter) Export(ctx context.Context, cs export.CheckpointSet) error {
 			if err != nil {
 				return err
 			}
-			e.client.Gauge(name+".count", metricValue(r.Descriptor().NumberKind(), val), tags, rate)
+			e.client.Count(name, val.AsInt64(), tags, rate)
 		case aggregator.LastValue:
 			val, _, err := agg.LastValue()
 			if err != nil {
 				return err
 			}
-			e.client.Gauge(name+".count", metricValue(r.Descriptor().NumberKind(), val), tags, rate)
+			e.client.Gauge(name, metricValue(r.Descriptor().NumberKind(), val), tags, rate)
 		}
 		return nil
 	})
