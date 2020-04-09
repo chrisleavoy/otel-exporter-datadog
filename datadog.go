@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"go.opentelemetry.io/otel/api/core"
@@ -20,11 +19,13 @@ const (
 
 // NewExporter exports to a datadog client
 func NewExporter(opts Options) (*Exporter, error) {
-	endpoint := opts.StatsAddr
-	if endpoint == "" {
-		endpoint = DefaultStatsAddrUDP
+	if opts.StatsAddr == "" {
+		opts.StatsAddr = DefaultStatsAddrUDP
 	}
-	client, err := statsd.New(endpoint)
+	if opts.MetricNameFormatter == nil {
+		opts.MetricNameFormatter = defaultFormatter
+	}
+	client, err := statsd.New(opts.StatsAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -45,6 +46,10 @@ type Options struct {
 
 	// UseDistribution uses a DataDog Distribution type instead of Histogram
 	UseDistribution bool
+
+	// MetricNameFormatter lets you customize the metric name that gets sent to
+	// datadog before exporting
+	MetricNameFormatter func(namespace, name string) string
 }
 
 // Exporter forwards metrics to a DataDog agent
@@ -54,6 +59,10 @@ type Exporter struct {
 }
 
 const rate = 1
+
+func defaultFormatter(namespace, name string) string {
+	return name
+}
 
 func (e *Exporter) Export(ctx context.Context, cs export.CheckpointSet) error {
 	return cs.ForEach(func(r export.Record) error {
@@ -137,11 +146,7 @@ func (e *Exporter) Close() error {
 // sanitizeMetricName formats the custom namespace and view name to
 // Datadog's metric naming convention
 func (e *Exporter) sanitizeMetricName(namespace, name string) string {
-	if namespace != "" {
-		namespace = strings.Replace(namespace, " ", "", -1)
-		return sanitizeString(namespace) + "." + sanitizeString(name)
-	}
-	return sanitizeString(name)
+	return sanitizeString(e.opts.MetricNameFormatter(namespace, name))
 }
 
 // regex pattern
