@@ -1,4 +1,4 @@
-package selector
+package datadog
 
 import (
 	"go.opentelemetry.io/otel/api/metric"
