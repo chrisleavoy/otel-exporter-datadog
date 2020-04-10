@@ -1,4 +1,4 @@
-module marwan.io/otel-exporter-datadog
+module github.com/chrisleavoy/otel-exporter-datadog
 
 go 1.14
 
